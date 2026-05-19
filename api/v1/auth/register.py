@@ -46,7 +46,6 @@ async def register(request: Request, db: Session = Depends(get_db)):
     db.refresh(user_record)
     
     return UserResponse(
-        id=str(user_record.id),
         username=user_record.email,
         email=user_record.email,
         token=token,

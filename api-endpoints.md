@@ -58,7 +58,6 @@ These endpoints manage user accounts and session generation. They are prefixed w
 - **Response Example (200 OK)**:
   ```json
   {
-    "id": "b71a2a44-1806-4393-bd77-1b86e7278a61",
     "username": "john.doe@example.com",
     "email": "john.doe@example.com",
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -83,7 +82,6 @@ These endpoints manage user accounts and session generation. They are prefixed w
 - **Response Example (200 OK)**:
   ```json
   {
-    "id": "b71a2a44-1806-4393-bd77-1b86e7278a61",
     "username": "john.doe@example.com",
     "email": "john.doe@example.com",
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
