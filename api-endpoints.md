@@ -38,10 +38,12 @@ These are basic health-check and status endpoints mapped directly in `main.py`.
 
 These endpoints manage user accounts and session generation. They are prefixed with `/api/v1/auth`.
 
+> The JWT access token returned here must be sent as a **Bearer token** in the `Authorization` header for all protected endpoints.
+
 ### User Registration
 - **Path**: `/api/v1/auth/register`
 - **Method**: `POST`
-- **Use**: Registers a new user, hashes the password using raw `bcrypt`, generates initial JWT access and refresh tokens, and provisions a verification code.
+- **Use**: Registers a new user, hashes the password using `bcrypt`, generates JWT access and refresh tokens (with the user's UUID stored in the `sub` claim), and provisions a verification code.
 - **Request Body (JSON)**:
   ```json
   {
@@ -70,7 +72,7 @@ These endpoints manage user accounts and session generation. They are prefixed w
 ### User Login
 - **Path**: `/api/v1/auth/login`
 - **Method**: `POST`
-- **Use**: Logs in an existing user by verifying credentials against the stored hash and returns a fresh JWT access and refresh token.
+- **Use**: Logs in an existing user by verifying credentials against the stored hash and returns a fresh JWT access and refresh token pair. The user's UUID is stored in the token `sub` claim.
 - **Request Body (JSON)**:
   ```json
   {
@@ -94,19 +96,32 @@ These endpoints manage user accounts and session generation. They are prefixed w
 
 ---
 
-## 3. Clipboard Endpoints
+## 3. Clipboard Endpoints 🔒
 
-These endpoints manage items pushed to or pulled from the cloud clipboard database. Mapped in `api/v1/clipboard/routes.py` with the `/clipboard` router prefix.
+These endpoints are **protected** and require a valid JWT access token in the `Authorization` header.
+
+```
+Authorization: Bearer <access_token>
+```
+
+The server extracts the user's identity exclusively from the token — `user_id` is **never** required in the request body or query parameters, and is **never** exposed in responses.
+
+Mapped in `api/v1/clipboard/routes.py` with the `/clipboard` router prefix.
 
 ### Save Clipboard Item
-- **Path**: `/api/v1/clipboard/save`
+- **Path**: `/api/v1/clipboard/personal`
 - **Method**: `POST`
-- **Use**: Saves a new clipboard text, image, url, or file metadata reference linked to a user.
+- **Auth**: Required — Bearer token
+- **Use**: Saves a new clipboard text, image, URL, or file metadata entry linked to the authenticated user.
+- **Request Headers**:
+  ```
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+  ```
 - **Request Body (JSON)**:
   ```json
   {
     "content": "This is text saved to the cloud clipboard!",
-    "user_id": "b71a2a44-1806-4393-bd77-1b86e7278a61",
     "content_type": "text",
     "expires_at": null,
     "is_private": false,
@@ -118,26 +133,34 @@ These endpoints manage items pushed to or pulled from the cloud clipboard databa
   ```json
   {
     "content": "This is text saved to the cloud clipboard!",
-    "user_id": "b71a2a44-1806-4393-bd77-1b86e7278a61",
     "created_at": "2026-05-19T04:50:55.798256",
     "updated_at": "2026-05-19T04:50:55.798265"
   }
   ```
+- **Error Responses**:
+  - `401 Unauthorized` — Missing or invalid Bearer token
+  - `403 Forbidden` — Account is inactive
 
 ### Get Clipboard Items
-- **Path**: `/api/v1/clipboard/get`
+- **Path**: `/api/v1/clipboard/personal`
 - **Method**: `GET`
-- **Use**: Retrieves saved clipboard items for a specific user.
-- **Query Parameters**:
-  - `user_id` (string, required): The UUID of the user.
+- **Auth**: Required — Bearer token
+- **Use**: Retrieves all saved clipboard items belonging to the authenticated user.
+- **Request Headers**:
+  ```
+  Authorization: Bearer <access_token>
+  ```
+- **Query Parameters**: None required.
 - **Response Example (200 OK)**:
   ```json
   [
     {
       "content": "This is text saved to the cloud clipboard!",
-      "user_id": "b71a2a44-1806-4393-bd77-1b86e7278a61",
       "created_at": "2026-05-19T04:50:55.798256",
       "updated_at": "2026-05-19T04:50:55.798265"
     }
   ]
   ```
+- **Error Responses**:
+  - `401 Unauthorized` — Missing or invalid Bearer token
+  - `403 Forbidden` — Account is inactive

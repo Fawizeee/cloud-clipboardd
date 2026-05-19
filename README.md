@@ -14,6 +14,7 @@ A highly secure, robust, and optimized backend engine for **Cloud Clipboard**, a
 
 - **🔐 Secure Authentication**: Full JWT-based authorization (Access and Refresh tokens) with robust password hashing using native `bcrypt`.
 - **📋 Clipboard Synchronization**: Instantly save, categorize, and fetch clipboard histories. Supports `text`, `url`, `image`, and `file` types.
+- **🛡️ Protected Endpoints**: Clipboard endpoints are JWT-gated — the user's identity is extracted exclusively from the bearer token, never from the request body.
 - **⚡ Connection Pooling**: Custom-tailored database pooling engineered to sustain optimal performance and low latency with remote PostgreSQL instances (Supabase).
 - **🛡️ Data Integrity**: Validates UUID models, content lengths, and formats safely using standard Pydantic models.
 - **🚀 Live-Reload Server**: Built-in development setup with Uvicorn.
@@ -36,8 +37,8 @@ A highly secure, robust, and optimized backend engine for **Cloud Clipboard**, a
 Backend/
 ├── api/                  # API routes (V1)
 │   └── v1/
-│       ├── auth/         # Login, Register endpoints
-│       ├── clipboard/    # Clipboard management routes
+│       ├── auth/         # Login, Register endpoints + JWT dependency
+│       ├── clipboard/    # Clipboard management routes (JWT-protected)
 │       └── router.py     # Main API router registry
 ├── core/                 # App configurations and security primitives
 │   ├── config.py         # Pydantic Settings (Environment variables)
@@ -225,43 +226,48 @@ These endpoints manage user accounts and session generation.
 These endpoints manage items pushed to or pulled from the cloud clipboard.
 
 #### **Save Clipboard Item**
-* **URL**: `/api/v1/clipboard/save`
+* **URL**: `/api/v1/clipboard/personal`
 * **Method**: `POST`
 * **Use**: Saves a new clipboard text, image, url, or file metadata reference.
+* **Request Headers**:
+  ```
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+  ```
 * **Request Body (JSON)**:
   ```json
   {
     "content": "This is text saved to the cloud clipboard!",
-    "user_id": "b71a2a44-1806-4393-bd77-1b86e7278a61",
     "content_type": "text",
     "expires_at": null,
     "is_private": false,
     "source_device_id": null
   }
   ```
-  *(Note: `content_type` must be one of: `text`, `image`, `file`, `url`)*
+  *(Note: `content_type` must be one of: `text`, `image`, `file`, `url`. `user_id` is no longer required — it is read from the JWT token.)*
 - **Response (200 OK)**:
   ```json
   {
     "content": "This is text saved to the cloud clipboard!",
-    "user_id": "b71a2a44-1806-4393-bd77-1b86e7278a61",
     "created_at": "2026-05-19T04:50:55.798256",
     "updated_at": "2026-05-19T04:50:55.798265"
   }
   ```
 
 #### **Get Clipboard Items**
-* **URL**: `/api/v1/clipboard/get`
+* **URL**: `/api/v1/clipboard/personal`
 * **Method**: `GET`
-* **Use**: Retrieves saved clipboard items for a specific user.
-* **Query Parameters**:
-  - `user_id` (string, required): The UUID of the user.
+* **Use**: Retrieves saved clipboard items for the authenticated user.
+* **Request Headers**:
+  ```
+  Authorization: Bearer <access_token>
+  ```
+* **Query Parameters**: None required. User identity is determined from the JWT token.
 - **Response (200 OK)**:
   ```json
   [
     {
       "content": "This is text saved to the cloud clipboard!",
-      "user_id": "b71a2a44-1806-4393-bd77-1b86e7278a61",
       "created_at": "2026-05-19T04:50:55.798256",
       "updated_at": "2026-05-19T04:50:55.798265"
     }
@@ -272,7 +278,8 @@ These endpoints manage items pushed to or pulled from the cloud clipboard.
 
 ## 🔒 Security Practices
 
-- **Zero Passlib Dependency**: Mitigates Python 3.12+ crash loops by replacing depreciated `passlib` with native `bcrypt` wrappers.
+- **Zero Passlib Dependency**: Mitigates Python 3.12+ crash loops by replacing deprecated `passlib` with native `bcrypt` wrappers.
 - **One-Way Hash**: Passwords are securely salted and hashed before storing.
 - **Stateless Auth**: Validates client access strictly via custom cryptographically-signed JWT keys.
+- **User Identity in JWT**: The user's UUID is stored in the token `sub` claim. Clipboard endpoints extract the caller's identity from the token — `user_id` is never sent in request bodies or exposed in responses.
 - **Variable Protection**: Prevents credential leaks by utilizing standard strict `.gitignore` patterns.

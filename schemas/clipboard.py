@@ -4,7 +4,6 @@ from datetime import datetime
 
 class saveClipboardRequest(BaseModel):
     content: str
-    user_id: str
     content_type: str
     expires_at: Optional[datetime] = None
     is_private: bool = False
@@ -19,13 +18,11 @@ class saveClipboardRequest(BaseModel):
 
 class saveClipboardResponse(BaseModel):
     content: str
-    user_id: str
     created_at: datetime
     updated_at: datetime
     
 class getClipboardResponse(BaseModel):
     content: str
-    user_id: str
     created_at: datetime
     updated_at: datetime
 

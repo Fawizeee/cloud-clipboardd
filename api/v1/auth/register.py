@@ -34,9 +34,10 @@ async def register(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user_record)
 
-    #generate jwt token 
-    token = create_access_token({"sub": user_record.email})
-    refresh_token = create_refresh_token({"sub": user_record.email})
+    # Generate JWT tokens — store the user's UUID in the sub claim
+    # so protected endpoints can identify the caller without needing user_id in the body
+    token = create_access_token({"sub": str(user_record.id)})
+    refresh_token = create_refresh_token({"sub": str(user_record.id)})
 
     user_record.token = token
     user_record.refresh_token = refresh_token
