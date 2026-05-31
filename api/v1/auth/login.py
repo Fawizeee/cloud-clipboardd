@@ -52,6 +52,7 @@ async def login(request: UserLoginRequest, db: Session = Depends(get_db)):
     db.refresh(user)
 
     return UserResponse(
+        id=str(user.id),
         username=user.email,
         email=user.email,
         token=token,

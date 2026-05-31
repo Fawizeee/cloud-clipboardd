@@ -22,8 +22,11 @@ import sys
 # Add the root directory of the project to sys.path so we can import from db
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from db.base import Base
+from db.models.base import Base
 from db.session import DATABASE_URL
+
+# Import all models so their tables are registered in Base.metadata
+from db.models import user, clipboard, device, folder, shared_item, sync_event  # noqa: F401
 
 # Set the SQLAlchemy URL from our application's configuration
 config.set_main_option("sqlalchemy.url", DATABASE_URL)

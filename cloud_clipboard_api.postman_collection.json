@@ -1,0 +1,1010 @@
+{
+  "info": {
+    "name": "Cloud Clipboard API",
+    "_postman_id": "cloud-clipboard-collection-v1",
+    "description": "Complete Postman collection for the Cloud Clipboard FastAPI backend.\n\n## Setup\n1. Set the `base_url` variable to `http://localhost:8000`\n2. Register a user → Verify email → Login\n3. The Login request auto-sets `access_token` and `refresh_token` variables via a test script\n4. All protected requests use `{{access_token}}` automatically\n\n## Variables\n- `base_url` — server base URL\n- `access_token` — auto-populated on login\n- `refresh_token` — auto-populated on login\n- `item_id` — clipboard item UUID (set manually after creating an item)\n- `device_id` — device UUID (set manually after registering a device)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "item_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "device_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "verification_code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reset_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🔧 Utility",
+      "item": [
+        {
+          "name": "Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Returns basic server info — name, version, environment, and docs URL."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"app\": \"Cloud Clipboard API\",\n  \"version\": \"1.0.0\",\n  \"env\": \"development\",\n  \"docs\": \"/docs\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Verifies server health and database connectivity."
+          },
+          "response": [
+            {
+              "name": "200 Healthy",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"status\": \"healthy\",\n  \"services\": {\n    \"database\": \"healthy\"\n  },\n  \"version\": \"1.0.0\",\n  \"env\": \"development\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.token) pm.collectionVariables.set('access_token', json.token);",
+                  "  if (json.refresh_token) pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "  console.log('Registered. Check DB or /resend-verify for verification_code.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"johndoe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"StrongPass123!\",\n  \"confirm_password\": \"StrongPass123!\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Creates a new user account. Password is bcrypt-hashed. Returns JWT tokens.\n\n⚠️ Account is INACTIVE until verified. Call **Verify Email** with the verification_code from the DB or from **Resend Verification**."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"id\": \"a3f1c2d4-1234-5678-abcd-ef0123456789\",\n  \"username\": \"john.doe@example.com\",\n  \"email\": \"john.doe@example.com\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refresh_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"needs_onboarding\": true,\n  \"created_at\": \"2026-05-31T12:00:00.000000\",\n  \"updated_at\": \"2026-05-31T12:00:01.000000\"\n}"
+            },
+            {
+              "name": "400 Already Exists",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"User already exists\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Resend Verification Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.verification_code) {",
+                  "    pm.collectionVariables.set('verification_code', json.verification_code);",
+                  "    console.log('verification_code saved:', json.verification_code);",
+                  "  }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/resend-verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "resend-verify"]
+            },
+            "description": "Generates a new 6-digit verification code and returns it in the response (dev mode). The test script saves it to {{verification_code}}."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"success\": true,\n  \"message\": \"New verification code generated.\",\n  \"verification_code\": \"739201\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"code\": \"{{verification_code}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "verify"]
+            },
+            "description": "Confirms the user's email. Sets is_verified=true and is_active=true so the user can log in. Uses the {{verification_code}} variable set by **Resend Verification**."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Email verified successfully. You can now log in.\"\n}"
+            },
+            {
+              "name": "400 Invalid Code",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Invalid verification code.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('access_token', json.token);",
+                  "  pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "  console.log('access_token and refresh_token saved to collection variables.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"StrongPass123!\",\n  \"device_info\": {\n    \"device_name\": \"Postman Client\",\n    \"platform\": \"web\",\n    \"version\": \"1.0.0\"\n  }\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Authenticates user and returns JWT token pair. The test script **automatically saves** `access_token` and `refresh_token` to collection variables."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"id\": \"a3f1c2d4-1234-5678-abcd-ef0123456789\",\n  \"username\": \"john.doe@example.com\",\n  \"email\": \"john.doe@example.com\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refresh_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"needs_onboarding\": false,\n  \"created_at\": \"2026-05-31T12:00:00.000000\",\n  \"updated_at\": \"2026-05-31T12:05:00.000000\"\n}"
+            },
+            {
+              "name": "403 Not Verified",
+              "status": "Forbidden",
+              "code": 403,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Please verify your email before logging in\"\n}"
+            },
+            {
+              "name": "401 Wrong Password",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Invalid password\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Refresh Access Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('access_token', json.access_token);",
+                  "  console.log('access_token refreshed and saved.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Exchanges a valid refresh token for a new access token. The test script saves the new access_token automatically."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"expires_in\": 1800\n}"
+            },
+            {
+              "name": "401 Expired",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Invalid or expired refresh token\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Request Password Reset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.reset_token) {",
+                  "    pm.collectionVariables.set('reset_token', json.reset_token);",
+                  "    console.log('reset_token saved:', json.reset_token);",
+                  "  }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/password-reset/request",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "password-reset", "request"]
+            },
+            "description": "Generates a password reset token (returned in response in dev mode). The test script saves it to {{reset_token}}."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Password reset token generated.\",\n  \"reset_token\": \"Xk2mN8pQrTsomeRandomUrlSafeToken\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Confirm Password Reset",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"new_password\": \"NewSecurePass456!\",\n  \"confirm_password\": \"NewSecurePass456!\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/password-reset/confirm",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "password-reset", "confirm"]
+            },
+            "description": "Validates the reset token and sets a new password. Token is invalidated after use. Uses {{reset_token}} set by Request Password Reset."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Password has been reset successfully. Please log in.\"\n}"
+            },
+            {
+              "name": "400 Invalid Token",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Invalid or expired reset token.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📋 Personal Clipboard",
+      "item": [
+        {
+          "name": "Create Clipboard Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('item_id', json.id);",
+                  "  console.log('item_id saved:', json.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Meeting notes: discuss Q3 roadmap and OKRs.\",\n  \"content_type\": \"text\",\n  \"expires_at\": null,\n  \"is_private\": false,\n  \"source_device_name\": \"Postman Client\",\n  \"folder_id\": null,\n  \"metadata\": {\n    \"source_app\": \"Postman\",\n    \"format\": \"plain_text\"\n  }\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/personal",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "personal"]
+            },
+            "description": "Save a new clipboard item. The test script saves the returned `id` to {{item_id}} for use in other requests.\n\ncontent_type options: text | image | file | url | code | email"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"id\": \"c1d2e3f4-aaaa-bbbb-cccc-ddddeeee1111\",\n  \"content\": \"Meeting notes: discuss Q3 roadmap and OKRs.\",\n  \"content_type\": \"text\",\n  \"content_size\": 44,\n  \"sync_status\": \"pending\",\n  \"created_at\": \"2026-05-31T12:10:00.000000\",\n  \"updated_at\": \"2026-05-31T12:10:00.000000\"\n}"
+            },
+            {
+              "name": "401 Unauthorized",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Invalid or expired token\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create URL Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"https://docs.fastapi.tiangolo.com/tutorial/\",\n  \"content_type\": \"url\",\n  \"source_device_name\": \"Postman Client\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/personal",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "personal"]
+            },
+            "description": "Example of saving a URL clipboard item."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Code Snippet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"SELECT * FROM clipboard WHERE user_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC LIMIT 20;\",\n  \"content_type\": \"code\",\n  \"source_device_name\": \"Postman Client\",\n  \"metadata\": {\n    \"language\": \"sql\"\n  }\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/personal",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "personal"]
+            },
+            "description": "Example of saving a code snippet."
+          },
+          "response": []
+        },
+        {
+          "name": "List Clipboard Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/personal?page=1&limit=20&sort_order=desc",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "personal"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"},
+                {"key": "sort_order", "value": "desc"},
+                {"key": "content_type", "value": "", "disabled": true, "description": "Filter: text | image | file | url | code | email"},
+                {"key": "folder_id", "value": "", "disabled": true, "description": "Filter by folder UUID"}
+              ]
+            },
+            "description": "Retrieve personal clipboard items with pagination. Toggle the optional query params to filter by type or folder."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"items\": [\n    {\n      \"id\": \"c1d2e3f4-aaaa-bbbb-cccc-ddddeeee1111\",\n      \"content\": \"Meeting notes: discuss Q3 roadmap and OKRs.\",\n      \"content_type\": \"text\",\n      \"content_preview\": \"Meeting notes: discuss Q3 roadmap and OKRs.\",\n      \"content_size\": 44,\n      \"source_device_name\": \"Postman Client\",\n      \"source_device_id\": null,\n      \"folder_id\": null,\n      \"is_favorite\": false,\n      \"is_pinned\": false,\n      \"is_private\": false,\n      \"access_count\": 0,\n      \"shared_by\": null,\n      \"created_at\": \"2026-05-31T12:10:00.000000\",\n      \"updated_at\": \"2026-05-31T12:10:00.000000\",\n      \"expires_at\": null\n    }\n  ],\n  \"pagination\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Search Clipboard Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/personal/search?q=meeting&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "personal", "search"],
+              "query": [
+                {"key": "q", "value": "meeting", "description": "Search query (required)"},
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            },
+            "description": "Full-text search across clipboard content. Change `q` to search for different terms."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"items\": [],\n  \"pagination\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 0,\n    \"total_pages\": 0\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Single Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/personal/{{item_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "personal", "{{item_id}}"]
+            },
+            "description": "Retrieve a single clipboard item by UUID. Increments access_count. Uses {{item_id}} set by Create Clipboard Item."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"id\": \"c1d2e3f4-aaaa-bbbb-cccc-ddddeeee1111\",\n  \"content\": \"Meeting notes: discuss Q3 roadmap and OKRs.\",\n  \"content_type\": \"text\",\n  \"content_preview\": \"Meeting notes: discuss Q3 roadmap and OKRs.\",\n  \"content_size\": 44,\n  \"source_device_name\": \"Postman Client\",\n  \"source_device_id\": null,\n  \"folder_id\": null,\n  \"is_favorite\": false,\n  \"is_pinned\": false,\n  \"is_private\": false,\n  \"access_count\": 1,\n  \"shared_by\": null,\n  \"created_at\": \"2026-05-31T12:10:00.000000\",\n  \"updated_at\": \"2026-05-31T12:10:00.000000\",\n  \"expires_at\": null\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Clipboard item not found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Clipboard Item",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_favorite\": true,\n  \"is_pinned\": false\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/personal/{{item_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "personal", "{{item_id}}"]
+            },
+            "description": "Partially update a clipboard item. All fields are optional.\n\nSupported fields:\n- content (string) — recomputes hash/preview/size\n- is_favorite (bool)\n- is_pinned (bool)\n- folder_id (UUID string)"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"id\": \"c1d2e3f4-aaaa-bbbb-cccc-ddddeeee1111\",\n  \"content\": \"Meeting notes: discuss Q3 roadmap and OKRs.\",\n  \"content_type\": \"text\",\n  \"content_preview\": \"Meeting notes: discuss Q3 roadmap and OKRs.\",\n  \"content_size\": 44,\n  \"source_device_name\": \"Postman Client\",\n  \"source_device_id\": null,\n  \"folder_id\": null,\n  \"is_favorite\": true,\n  \"is_pinned\": false,\n  \"is_private\": false,\n  \"access_count\": 1,\n  \"shared_by\": null,\n  \"created_at\": \"2026-05-31T12:10:00.000000\",\n  \"updated_at\": \"2026-05-31T12:11:00.000000\",\n  \"expires_at\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Content",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated meeting notes — Q3 planning confirmed for July 15th.\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/personal/{{item_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "personal", "{{item_id}}"]
+            },
+            "description": "Update the content of a clipboard item. hash, preview, and size are recomputed automatically."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Clipboard Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/personal/{{item_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "personal", "{{item_id}}"]
+            },
+            "description": "Soft-deletes a clipboard item (sets is_deleted=true). It no longer appears in list or search results. Uses {{item_id}}."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"message\": \"Clipboard item deleted successfully\"\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Clipboard item not found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Upload File (Stub)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "Select a file to upload"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/files",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "files"]
+            },
+            "description": "Upload a file as a multipart/form-data request.\n\n⚠️ File storage (S3/MinIO) is not configured. Returns a stub URL. Wire in your storage provider in api/v1/clipboard/routes.py."
+          },
+          "response": [
+            {
+              "name": "201 Created (Stub)",
+              "status": "Created",
+              "code": 201,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"id\": \"e5f6a7b8-cccc-dddd-eeee-ffff00001111\",\n  \"file_url\": \"https://storage.example.com/files/e5f6a7b8-cccc-dddd-eeee-ffff00001111/screenshot.png\",\n  \"content_type\": \"image/png\",\n  \"filename\": \"screenshot.png\",\n  \"file_size\": 204800,\n  \"created_at\": \"2026-05-31T12:15:00.000000\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "👥 Team Clipboard",
+      "item": [
+        {
+          "name": "Get Team Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/team?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "team"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            },
+            "description": "Retrieve clipboard items that other users have shared with you. Each item includes a `shared_by` field with the sharer's full name."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"items\": [\n    {\n      \"id\": \"d4e5f6a7-1234-5678-9abc-def012345678\",\n      \"content\": \"API key for staging: sk-staging-abc123\",\n      \"content_type\": \"text\",\n      \"content_preview\": \"API key for staging: sk-staging-abc123\",\n      \"content_size\": 38,\n      \"source_device_name\": \"MacBook Pro\",\n      \"source_device_id\": null,\n      \"folder_id\": null,\n      \"is_favorite\": false,\n      \"is_pinned\": false,\n      \"is_private\": false,\n      \"access_count\": 0,\n      \"shared_by\": \"Alice Smith\",\n      \"created_at\": \"2026-05-31T10:00:00.000000\",\n      \"updated_at\": \"2026-05-31T10:00:00.000000\",\n      \"expires_at\": null\n    }\n  ],\n  \"pagination\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 1,\n    \"total_pages\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Share Clipboard Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clipboard_item_id\": \"{{item_id}}\",\n  \"share_with_email\": \"alice@example.com\",\n  \"permission\": \"read\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clipboard/team/share",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clipboard", "team", "share"]
+            },
+            "description": "Share one of your clipboard items with another registered user by their email address.\n\nPermission options: \"read\" (default) | \"write\"\n\nUses {{item_id}} — make sure to create an item first and have a second registered user's email ready."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"message\": \"Item shared with alice@example.com successfully\"\n}"
+            },
+            {
+              "name": "404 Recipient Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Recipient user not found\"\n}"
+            },
+            {
+              "name": "409 Already Shared",
+              "status": "Conflict",
+              "code": 409,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Item already shared with this user\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔄 Sync",
+      "item": [
+        {
+          "name": "Get Sync Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync", "status"]
+            },
+            "description": "Returns sync state: last sync time, pending event count, and all registered devices with online/offline status.\n\nA device is considered online if last_seen is within the past 5 minutes."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"last_sync\": \"2026-05-31T11:55:00.000000\",\n  \"pending_items\": 2,\n  \"conflict_items\": 0,\n  \"devices\": [\n    {\n      \"id\": \"b2a3c4d5-0001-0002-0003-000400050006\",\n      \"name\": \"Pixel 8 Pro\",\n      \"last_seen\": \"2026-05-31T12:30:00.000000\",\n      \"status\": \"online\"\n    },\n    {\n      \"id\": \"c3b4a5d6-0002-0003-0004-000500060007\",\n      \"name\": \"MacBook Pro 16\\\"\",\n      \"last_seen\": \"2026-05-30T18:00:00.000000\",\n      \"status\": \"offline\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Trigger Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"{{device_id}}\",\n  \"last_sync_timestamp\": \"2026-01-01T00:00:00.000000\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync/trigger",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync", "trigger"]
+            },
+            "description": "Returns all clipboard items changed after last_sync_timestamp (up to 200 items per batch).\n\nTip: Set last_sync_timestamp to \"2026-01-01T00:00:00\" to get all items ever.\n\nUses {{device_id}} — register a device first."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"sync_id\": \"f1e2d3c4-5555-6666-7777-888899990000\",\n  \"items_to_sync\": [\n    {\n      \"id\": \"c1d2e3f4-aaaa-bbbb-cccc-ddddeeee1111\",\n      \"action\": \"create\",\n      \"content_type\": \"text\",\n      \"content\": \"Meeting notes: discuss Q3 roadmap and OKRs.\",\n      \"created_at\": \"2026-05-31T12:10:00.000000\"\n    }\n  ],\n  \"sync_timestamp\": \"2026-05-31T12:35:00.000000\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📱 Devices",
+      "item": [
+        {
+          "name": "Register Device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('device_id', json.id);",
+                  "  console.log('device_id saved:', json.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_name\": \"Postman Client\",\n  \"device_type\": \"web\",\n  \"platform\": \"web\",\n  \"os_version\": \"Windows 11\",\n  \"app_version\": \"1.0.0\",\n  \"device_token\": null,\n  \"public_key\": null\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/device",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "device"]
+            },
+            "description": "Register a device. If a device with the same name + platform exists for this user it is upserted (last_seen updated). Test script saves {{device_id}}.\n\nplatform options: ios | android | windows | linux | macos | web\ndevice_type options: mobile | desktop | web"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"id\": \"b2a3c4d5-0001-0002-0003-000400050006\",\n  \"device_name\": \"Postman Client\",\n  \"device_type\": \"web\",\n  \"platform\": \"web\",\n  \"os_version\": \"Windows 11\",\n  \"app_version\": \"1.0.0\",\n  \"last_seen\": \"2026-05-31T12:30:00.000000\",\n  \"is_active\": true,\n  \"created_at\": \"2026-05-31T12:30:00.000000\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Register Mobile Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_name\": \"Pixel 8 Pro\",\n  \"device_type\": \"mobile\",\n  \"platform\": \"android\",\n  \"os_version\": \"Android 14\",\n  \"app_version\": \"1.2.0\",\n  \"device_token\": \"fcm-token-placeholder-abc123\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/device",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "device"]
+            },
+            "description": "Example for registering an Android mobile device with an FCM push notification token."
+          },
+          "response": []
+        },
+        {
+          "name": "List Devices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/device",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "device"]
+            },
+            "description": "List all active devices registered under the authenticated user's account, ordered by last_seen descending."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "[\n  {\n    \"id\": \"b2a3c4d5-0001-0002-0003-000400050006\",\n    \"device_name\": \"Postman Client\",\n    \"device_type\": \"web\",\n    \"platform\": \"web\",\n    \"os_version\": \"Windows 11\",\n    \"app_version\": \"1.0.0\",\n    \"last_seen\": \"2026-05-31T12:30:00.000000\",\n    \"is_active\": true,\n    \"created_at\": \"2026-05-31T12:30:00.000000\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Remove Device",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/device/{{device_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "device", "{{device_id}}"]
+            },
+            "description": "Soft-deletes a device (is_deleted=true, is_active=false). Uses {{device_id}}."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"message\": \"Device removed successfully\"\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"detail\": \"Device not found\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "⚡ WebSocket (Info)",
+      "item": [
+        {
+          "name": "WebSocket Connection Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/docs#/websocket/websocket_endpoint_api_v1_ws_get",
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "WebSocket endpoints cannot be tested directly in Postman REST requests.\n\n## How to test the WebSocket\n\n**Option 1 — Postman WebSocket Request:**\n1. Click New → WebSocket Request\n2. Enter URL: ws://localhost:8000/api/v1/ws?token={{access_token}}\n3. Connect, then send messages as JSON:\n\n**clipboard_update:**\n```json\n{\n  \"event\": \"clipboard_update\",\n  \"data\": {\n    \"content\": \"Hello from WebSocket!\",\n    \"content_type\": \"text\",\n    \"source_device_name\": \"Postman WS Client\"\n  }\n}\n```\n\n**sync_request:**\n```json\n{\n  \"event\": \"sync_request\",\n  \"data\": {\n    \"last_sync_timestamp\": \"2026-01-01T00:00:00\"\n  }\n}\n```\n\n**Option 2 — Browser Console:**\n```javascript\nconst ws = new WebSocket('ws://localhost:8000/api/v1/ws?token=YOUR_TOKEN');\nws.onmessage = e => console.log(JSON.parse(e.data));\nws.onopen = () => ws.send(JSON.stringify({\n  event: 'sync_request',\n  data: { last_sync_timestamp: '2026-01-01T00:00:00' }\n}));\n```"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
